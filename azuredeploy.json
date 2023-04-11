@@ -1,0 +1,1001 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workflows_devops_personal_name": {
+      "defaultValue": "devops-personal",
+      "type": "String"
+    },
+    "connections_office365_externalid": {
+      "defaultValue": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/resourceGroups/devops-personal_group/providers/Microsoft.Web/connections/office365",
+      "type": "String"
+    },
+    "connections_outlook_externalid": {
+      "defaultValue": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/resourceGroups/devops-personal_group/providers/Microsoft.Web/connections/outlook",
+      "type": "String"
+    },
+    "connections_planner_externalid": {
+      "defaultValue": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/resourceGroups/devops-personal_group/providers/Microsoft.Web/connections/planner",
+      "type": "String"
+    },
+    "connections_visualstudioteamservices_externalid": {
+      "defaultValue": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/resourceGroups/devops-personal_group/providers/Microsoft.Web/connections/visualstudioteamservices",
+      "type": "String"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2017-07-01",
+      "name": "[parameters('workflows_devops_personal_name')]",
+      "location": "westeurope",
+      "properties": {
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            }
+          },
+          "triggers": {
+            "Recurrence": {
+              "recurrence": {
+                "frequency": "Day",
+                "interval": 1,
+                "schedule": {
+                  "hours": ["0"],
+                  "minutes": [10]
+                },
+                "timeZone": "W. Europe Standard Time"
+              },
+              "evaluatedRecurrence": {
+                "frequency": "Day",
+                "interval": 1,
+                "schedule": {
+                  "hours": ["0"],
+                  "minutes": [10]
+                },
+                "timeZone": "W. Europe Standard Time"
+              },
+              "type": "Recurrence"
+            }
+          },
+          "actions": {
+            "Calendar_Events": {
+              "actions": {
+                "For_each_8": {
+                  "foreach": "@body('Get_query_results_8')?['value']",
+                  "actions": {
+                    "Update_a_work_item_9": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "userEnteredFields": {
+                            "InCalendar": "@{false}"
+                          }
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_each_8')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_query_results_8": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                },
+                "Get_query_results_2": {
+                  "runAfter": {},
+                  "metadata": {
+                    "4e0c9c79-0f5c-47b2-899d-00abff85fb6f": "Shared Queries/TodayToDosFlat",
+                    "51f9194d-834c-44ee-a95f-1baf16a40629": "Shared Queries/Grooming/ToDosTodayNotInCalendar",
+                    "7ed638c8-5712-4457-872f-f0e3790b37da": "Shared Queries/Today ToDos"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('51f9194d-834c-44ee-a95f-1baf16a40629')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                },
+                "Get_query_results_8": {
+                  "runAfter": {
+                    "Get_query_results_2": ["Succeeded"]
+                  },
+                  "metadata": {
+                    "ce4c8521-fbc3-42c4-81db-afa1275096bc": "Shared Queries/Grooming/InCalendarNotFinished+ChangedDate"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('ce4c8521-fbc3-42c4-81db-afa1275096bc')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                },
+                "Make_events_in_planer": {
+                  "foreach": "@body('Get_query_results_2')?['value']",
+                  "actions": {
+                    "Create_event_(V3)": {
+                      "runAfter": {
+                        "Get_work_item_details": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "Body": "<p>@{body('Get_work_item_details')?['fields']?['System_Description']}</p>",
+                          "End": "@{utcNow()}",
+                          "Importance": "@{if(equals(body('Get_work_item_details')?['fields']?['Microsoft_VSTS_Common_Priority'],1), 'high','normal')}",
+                          "IsAllDay": true,
+                          "Reminder": 0,
+                          "ShowAs": "Free",
+                          "Start": "@{utcNow()}",
+                          "Subject": "@{body('Get_work_item_details')?['fields']?['Microsoft_VSTS_Common_Priority']} - @{body('Get_work_item_details')?['fields']?['System_Title']}"
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['outlook']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "path": "/datasets/calendars/v3/tables/@{encodeURIComponent(encodeURIComponent('AQMkADAwATMwMAItYTY4Ni05MDRiLTAwAi0wMAoARgAAA4Sc7e8-L4hEk3u510XrME4HAHU1Ucubs9lMmnbNiElc7vUAAAIBBgAAAHU1Ucubs9lMmnbNiElc7vUAAAI-7gAAAA=='))}/items"
+                      }
+                    },
+                    "Get_work_item_details": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('Make_events_in_planer')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "ToDo"
+                        }
+                      }
+                    },
+                    "Update_a_work_item_4": {
+                      "runAfter": {
+                        "Create_event_(V3)": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "userEnteredFields": {
+                            "InCalendar": "@{true}"
+                          }
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(body('Get_work_item_details')?['id'])}",
+                        "queries": {
+                          "account": "doctordataman"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "For_each_8": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "Cold_ToDos_Email": {
+              "actions": {
+                "For_each_4": {
+                  "foreach": "@body('Get_query_results_4')?['value']",
+                  "actions": {
+                    "Send_an_email_(V2)": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "Body": "<p>Dear you,<br>\n<br>\nIt's you. Well not really you but you know. YOU.<br>\n<br>\nTurns out you need to check some stuff out.<br>\n<br>\n@{items('For_each_4')?['System.Id']} - @{items('For_each_4')?['System.Title']} - @{items('For_each_4')?['System.State']} - @{items('For_each_4')?['System.Tags']} needs to be looked at and planed.<br>\n<br>\nCheers<br>\nYou</p>",
+                          "Importance": "High",
+                          "Subject": "Azure DevOps - ToDos needs to be planed",
+                          "To": "peil.jonathan@gmail.com"
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['outlook']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "path": "/v2/Mail"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_query_results_4": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                },
+                "Get_query_results_4": {
+                  "runAfter": {},
+                  "metadata": {
+                    "f88c5230-c161-4c40-af5f-1284318bfb67": "Shared Queries/Grooming/ColdToDos"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('f88c5230-c161-4c40-af5f-1284318bfb67')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "Epic_not_finished_Email": {
+              "actions": {
+                "For_each_6": {
+                  "foreach": "@body('Get_query_results_6')?['value']",
+                  "actions": {
+                    "Get_work_item_details_6": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(body('Get_query_results_6')?['id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "Epic"
+                        }
+                      }
+                    },
+                    "Send_an_email_(V2)_2": {
+                      "runAfter": {
+                        "Get_work_item_details_6": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "Body": "<p>Dear you,<br>\n<br>\n@{body('Get_work_item_details_6')?['id']} - @{body('Get_work_item_details_6')?['fields']?['System_Title']} (@{body('Get_work_item_details_6')?['fields']?['System_Tags']}) was supposed to finish on @{body('Get_work_item_details_6')?['fields']?['Microsoft_VSTS_Scheduling_TargetDate']}. <br>\n<br>\nTarget Date may need to be expended.<br>\n<br>\nCheers<br>\nYou</p>",
+                          "Importance": "Normal",
+                          "Subject": "Epic (@{body('Get_work_item_details_6')?['fields']?['System_Title']})  overlasted Target Date",
+                          "To": "peil.jonathan@gmail.com"
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['office365']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "path": "/v2/Mail"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_query_results_6": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                },
+                "Get_query_results_6": {
+                  "runAfter": {},
+                  "metadata": {
+                    "1d99df3d-0153-4587-995f-d50a16b63aa5": "Shared Queries/Grooming/NotFinishedEpic"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('1d99df3d-0153-4587-995f-d50a16b63aa5')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "For_each_9": {
+              "foreach": "@body('List_my_tasks')?['value']",
+              "actions": {},
+              "runAfter": {
+                "List_my_tasks": ["Succeeded"]
+              },
+              "type": "Foreach"
+            },
+            "Integration_Paths": {
+              "actions": {
+                "Get_query_results_3": {
+                  "runAfter": {},
+                  "metadata": {
+                    "45aa0b2c-4e85-4556-a13d-ade6b61ee6c4": "Shared Queries/No Iteration Paths"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('45aa0b2c-4e85-4556-a13d-ade6b61ee6c4')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                },
+                "Put_tasks_in_right_iteration_paths": {
+                  "foreach": "@body('Get_query_results_3')?['value']",
+                  "actions": {
+                    "Get_work_item_details_3": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('Put_tasks_in_right_iteration_paths')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "ToDo"
+                        }
+                      }
+                    },
+                    "Update_a_work_item_2": {
+                      "runAfter": {
+                        "Get_work_item_details_3": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "iteration": "@{concat('Life\\Week ', add(div(dayOfYear(utcNow()),7),1), ' - 2023')}"
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(body('Get_work_item_details_3')?['id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_query_results_3": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "List_my_tasks": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['planner']['connectionId']"
+                  }
+                },
+                "method": "get",
+                "path": "/v1.0/me/planner/tasks"
+              }
+            },
+            "New_Dailies": {
+              "actions": {
+                "Dailies": {
+                  "runAfter": {},
+                  "metadata": {
+                    "46855861-0850-41ca-9eb6-d3fd2263591c": "Shared Queries/Grooming/DailyFromYesterday",
+                    "af4cbbea-acb5-4a37-be8f-8596e0248e50": "Shared Queries/Daily"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('46855861-0850-41ca-9eb6-d3fd2263591c')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                },
+                "For_each_2": {
+                  "foreach": "@body('Dailies')?['value']",
+                  "actions": {
+                    "Condition_2": {
+                      "actions": {
+                        "Update_a_work_item_5": {
+                          "runAfter": {},
+                          "type": "ApiConnection",
+                          "inputs": {
+                            "body": {
+                              "userEnteredFields": {
+                                "State": "Deprioritized"
+                              }
+                            },
+                            "host": {
+                              "connection": {
+                                "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                              }
+                            },
+                            "method": "patch",
+                            "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_Each_2')?['System.Id'])}",
+                            "queries": {
+                              "account": "doctordataman"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Create_a_work_item_2": ["Succeeded"]
+                      },
+                      "expression": {
+                        "and": [
+                          {
+                            "not": {
+                              "equals": [
+                                "@body('Get_work_item_details_5')?['fields']?['System_State']",
+                                "Done"
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "Create_a_work_item_2": {
+                      "runAfter": {
+                        "Get_work_item_details_5": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "title": "@body('Get_work_item_details_5')?['fields']?['System_Title']",
+                          "userEnteredFields": {
+                            "Assigned To": "@body('Get_work_item_details_5')?['fields']?['System_AssignedTo']",
+                            "Daily": "@{true}",
+                            "Description": "@body('Get_work_item_details_5')?['fields']?['System_Description']",
+                            "Effort": "@{body('Get_work_item_details_5')?['fields']?['Microsoft_VSTS_Scheduling_Effort']}",
+                            "Finish Date": "@{addDays(body('Get_work_item_details_5')?['fields']?['Microsoft_VSTS_Scheduling_FinishDate'],1)}",
+                            "Parent": "@{body('Get_work_item_details_5')?['fields']?['System_Parent']}",
+                            "Priority": "@{body('Get_work_item_details_5')?['fields']?['Microsoft_VSTS_Common_Priority']}",
+                            "State": "@body('Get_work_item_details_5')?['fields']?['System_State']"
+                          }
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/@{encodeURIComponent('Life')}/_apis/wit/workitems/$@{encodeURIComponent('ToDo')}",
+                        "queries": {
+                          "account": "doctordataman"
+                        }
+                      }
+                    },
+                    "Get_work_item_details_5": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_Each_2')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "ToDo"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Dailies": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "Status_Update": {
+              "actions": {
+                "For_each": {
+                  "foreach": "@body('Status_Not_Updated')?['value']",
+                  "actions": {
+                    "Get_work_item_details_4": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_Each')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "ToDo"
+                        }
+                      }
+                    },
+                    "Update_a_work_item_3": {
+                      "runAfter": {
+                        "Get_work_item_details_4": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "userEnteredFields": {
+                            "State": "Doing"
+                          }
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(body('Get_work_item_details_4')?['id'])}",
+                        "queries": {
+                          "account": "doctordataman"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Status_Not_Updated": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                },
+                "For_each_5": {
+                  "foreach": "@body('Get_query_results_5')?['value']",
+                  "actions": {
+                    "Update_a_work_item": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "userEnteredFields": {
+                            "State": "Doing"
+                          }
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_each_5')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_query_results_5": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                },
+                "Get_query_results_5": {
+                  "runAfter": {
+                    "For_each": ["Succeeded"]
+                  },
+                  "metadata": {
+                    "e840dc4f-0acd-44b8-b970-6f516cb804ff": "Shared Queries/Grooming/PlannedForToday"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('e840dc4f-0acd-44b8-b970-6f516cb804ff')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                },
+                "Status_Not_Updated": {
+                  "runAfter": {},
+                  "metadata": {
+                    "9614060d-a4ad-4188-804e-4ee72729b8c6": "Shared Queries/StateNotUpdated"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('9614060d-a4ad-4188-804e-4ee72729b8c6')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "Tag_ToDos_from_Epics": {
+              "actions": {
+                "For_each_3": {
+                  "foreach": "@body('Get_query_results')?['value']",
+                  "actions": {
+                    "Condition": {
+                      "actions": {
+                        "Get_work_item_details_8": {
+                          "runAfter": {},
+                          "type": "ApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connection": {
+                                "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                              }
+                            },
+                            "method": "get",
+                            "path": "/_apis/wit/workitems/@{encodeURIComponent(body('Get_work_item_details_7')?['fields']?['System_Parent'])}",
+                            "queries": {
+                              "account": "doctordataman",
+                              "project": "Life",
+                              "typeName": "Epic"
+                            }
+                          }
+                        },
+                        "Update_a_work_item_7": {
+                          "runAfter": {
+                            "Get_work_item_details_8": ["Succeeded"]
+                          },
+                          "type": "ApiConnection",
+                          "inputs": {
+                            "body": {
+                              "userEnteredFields": {
+                                "Tags": "@body('Get_work_item_details_8')?['fields']?['System_Tags']"
+                              }
+                            },
+                            "host": {
+                              "connection": {
+                                "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                              }
+                            },
+                            "method": "patch",
+                            "path": "/_apis/wit/workitems/@{encodeURIComponent(body('Get_work_item_details_7')?['id'])}",
+                            "queries": {
+                              "account": "doctordataman"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Get_work_item_details_7": ["Succeeded"]
+                      },
+                      "expression": {
+                        "and": [
+                          {
+                            "not": {
+                              "equals": [
+                                "@body('Get_work_item_details_7')?['fields']?['System_Parent']",
+                                "@null"
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "Get_work_item_details_7": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_each_3')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "ToDo"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_query_results": ["Succeeded"]
+                  },
+                  "type": "Foreach",
+                  "description": "Put tags to all ToDos from Epic"
+                },
+                "Get_query_results": {
+                  "runAfter": {},
+                  "metadata": {
+                    "267f4723-cc22-4b19-a01f-7bd775e05967": "Shared Queries/TodoNoTags"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('267f4723-cc22-4b19-a01f-7bd775e05967')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "ToDos_correct_Sprint": {
+              "actions": {
+                "For_each_7": {
+                  "foreach": "@body('Get_query_results_7')?['value']",
+                  "actions": {
+                    "Get_work_item_details_9": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_each_7')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "ToDo"
+                        }
+                      }
+                    },
+                    "Update_a_work_item_8": {
+                      "runAfter": {
+                        "Get_work_item_details_9": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "iteration": "@{concat('Life\\Week ', add(div(dayOfYear(body('Get_work_item_details_9')?['fields']?['Microsoft_VSTS_Scheduling_FinishDate']),7),1), ' - 2023')}"
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('For_each_7')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_query_results_7": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                },
+                "Get_query_results_7": {
+                  "runAfter": {},
+                  "metadata": {
+                    "a38852cd-7195-4ad8-a0e0-b329984dfe11": "Shared Queries/Grooming/ToDosMovedFromCurrentSprint"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('a38852cd-7195-4ad8-a0e0-b329984dfe11')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 200
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "ToDos_not_finished_yesterday": {
+              "actions": {
+                "Go_through_all_ToDos": {
+                  "foreach": "@body('Not_Finished_ToDos')?['value']",
+                  "actions": {
+                    "Get_work_item_details_2": {
+                      "runAfter": {},
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "get",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(items('Go_through_all_ToDos')?['System.Id'])}",
+                        "queries": {
+                          "account": "doctordataman",
+                          "project": "Life",
+                          "typeName": "ToDo"
+                        }
+                      }
+                    },
+                    "Update_a_work_item_6": {
+                      "runAfter": {
+                        "Get_work_item_details_2": ["Succeeded"]
+                      },
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "body": {
+                          "priority": 1,
+                          "userEnteredFields": {
+                            "Finish Date": "@{utcNow()}"
+                          }
+                        },
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                          }
+                        },
+                        "method": "patch",
+                        "path": "/_apis/wit/workitems/@{encodeURIComponent(body('Get_work_item_details_2')?['id'])}",
+                        "queries": {
+                          "account": "doctordataman"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Not_Finished_ToDos": ["Succeeded"]
+                  },
+                  "type": "Foreach"
+                },
+                "Not_Finished_ToDos": {
+                  "runAfter": {},
+                  "metadata": {
+                    "d7eff9ad-8b16-4586-9a5f-730ae8cbcfbb": "Shared Queries/Current Sprint ToDos",
+                    "e98a1807-9159-426d-8b06-b76a418863be": "Shared Queries/Current Sprint",
+                    "ef18ad5d-71a9-4199-b6c7-190b4c6e4b58": "Shared Queries/NotFinishedToDosYesterday"
+                  },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['visualstudioteamservices']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/@{encodeURIComponent('Life')}/queryResults/@{encodeURIComponent('ef18ad5d-71a9-4199-b6c7-190b4c6e4b58')}",
+                    "queries": {
+                      "account": "doctordataman",
+                      "workItemsCount": 2000
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "office365": {
+                "connectionId": "[parameters('connections_office365_externalid')]",
+                "connectionName": "office365",
+                "id": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/providers/Microsoft.Web/locations/westeurope/managedApis/office365"
+              },
+              "outlook": {
+                "connectionId": "[parameters('connections_outlook_externalid')]",
+                "connectionName": "outlook",
+                "id": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/providers/Microsoft.Web/locations/westeurope/managedApis/outlook"
+              },
+              "planner": {
+                "connectionId": "[parameters('connections_planner_externalid')]",
+                "connectionName": "planner",
+                "id": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/providers/Microsoft.Web/locations/westeurope/managedApis/planner"
+              },
+              "visualstudioteamservices": {
+                "connectionId": "[parameters('connections_visualstudioteamservices_externalid')]",
+                "connectionName": "visualstudioteamservices",
+                "id": "/subscriptions/1317eec9-719c-4661-a4c6-1833504ad9ec/providers/Microsoft.Web/locations/westeurope/managedApis/visualstudioteamservices"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
