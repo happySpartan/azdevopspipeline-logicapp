@@ -1,0 +1,23 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: AzureResourceManagerTemplateDeployment@3
+  inputs:
+    deploymentScope: 'Resource Group'
+    azureResourceManagerConnection: 'ARMTemp'
+    subscriptionId: '1317eec9-719c-4661-a4c6-1833504ad9ec'
+    action: 'Create Or Update Resource Group'
+    resourceGroupName: 'devops-personal_group'
+    location: 'West Europe'
+    templateLocation: 'URL of the file'
+    csmFileLink: 'https://raw.githubusercontent.com/happySpartan/la-pipeline-devops/master/azuredeploy.json'
+    deploymentMode: 'Incremental'
